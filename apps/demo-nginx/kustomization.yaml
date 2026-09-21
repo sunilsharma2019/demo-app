@@ -4,15 +4,14 @@
 # -----------------------------------------------------------------------------
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 # Files that make up the app.
 resources:
   - deployment.yaml
   - service.yaml
-
 # IMAGE TAG LIVES HERE. Phase 3's CI pipeline edits `newTag` (and later
 # `newName`, to point at the ACR image) and commits it; Argo CD then rolls out
 # the new version. Nothing else needs to change.
 images:
-  - name: nginx          # Matches `image: nginx` in deployment.yaml.
-    newTag: "1.27"       # <-- IMAGE TAG PLACEHOLDER (bumped by CI in Phase 3)
+  - name: nginx # Matches `image: nginx` in deployment.yaml.
+    newTag: "75de5d5" # <-- IMAGE TAG PLACEHOLDER (bumped by CI in Phase 3)
+    newName: acrk8slabw2e3fs.azurecr.io/demo-nginx
