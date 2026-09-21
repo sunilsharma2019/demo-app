@@ -1,14 +1,30 @@
-# ClusterIP service: gives the pods a stable in-cluster address. It is not
-# exposed to the internet. To look at the app use:
-#   kubectl port-forward svc/demo-nginx -n demo 8081:80
+# -----------------------------------------------------------------------------
+# LoadBalancer service: AKS creates a public IP on the cluster's Standard load
+# balancer and sends traffic on port 80 to the demo-nginx pods.
+#
+# Locked down because a public IP is open to the internet by default:
+#   - loadBalancerSourceRanges: only these addresses may connect.
+#   - azure-pip-tags: AKS creates the public IP without tags, and the
+#     subscription's tag policy requires these five, so we pass them here.
+#
+# Find the address with:  kubectl get svc demo-nginx -n demo
+# Prefer no public IP?    Set `type: ClusterIP`, drop the two settings below,
+#                         and use: kubectl port-forward svc/demo-nginx -n demo 8081:80
+# -----------------------------------------------------------------------------
 apiVersion: v1
 kind: Service
 metadata:
   name: demo-nginx
   labels:
     app: demo-nginx
+  annotations:
+    service.beta.kubernetes.io/azure-pip-tags: "owner=Sunil Sharma,project=argo-cd-test-lab,environment=test,department=test,application=aks-gitops-lab"
 spec:
-  type: ClusterIP
+  type: LoadBalancer
+  # Update these if either of your public IPs changes (curl -s ifconfig.me).
+  loadBalancerSourceRanges:
+    - 120.136.32.106/32
+    - 114.142.165.180/32
   selector:
     app: demo-nginx     # Sends traffic to pods carrying this label.
   ports:
