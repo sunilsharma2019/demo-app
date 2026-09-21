@@ -1,0 +1,16 @@
+# ClusterIP service: gives the pods a stable in-cluster address. It is not
+# exposed to the internet. To look at the app use:
+#   kubectl port-forward svc/demo-nginx -n demo 8081:80
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-nginx
+  labels:
+    app: demo-nginx
+spec:
+  type: ClusterIP
+  selector:
+    app: demo-nginx     # Sends traffic to pods carrying this label.
+  ports:
+    - port: 80          # Port the service listens on.
+      targetPort: 80    # Container port the traffic is forwarded to.

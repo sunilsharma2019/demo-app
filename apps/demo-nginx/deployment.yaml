@@ -1,0 +1,38 @@
+# -----------------------------------------------------------------------------
+# Deployment for the demo nginx app. Argo CD applies this from Git.
+#
+# The image below is deliberately just "nginx" with NO tag. The tag is set in
+# kustomization.yaml (the `images:` block), so the CI pipeline (Phase 3) only
+# has to change one small line there, and never edits this file.
+# -----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-nginx
+  labels:
+    app: demo-nginx
+spec:
+  # Desired number of pods. Change it in Git and Argo CD applies it; change it
+  # by hand with kubectl and Argo CD reports drift (used in the Phase 4 demo).
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-nginx
+  template:
+    metadata:
+      labels:
+        app: demo-nginx
+    spec:
+      containers:
+        - name: nginx
+          # Tag is injected by kustomization.yaml (images: newTag).
+          image: nginx
+          ports:
+            - containerPort: 80
+          # Small requests so this fits on the single 4 GB lab node next to Argo CD.
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
