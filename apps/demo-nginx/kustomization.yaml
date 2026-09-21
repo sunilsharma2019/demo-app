@@ -13,5 +13,5 @@ resources:
 # the new version. Nothing else needs to change.
 images:
   - name: nginx # Matches `image: nginx` in deployment.yaml.
-    newTag: "75de5d5" # <-- IMAGE TAG PLACEHOLDER (bumped by CI in Phase 3)
+    newTag: "36face0" # <-- IMAGE TAG PLACEHOLDER (bumped by CI in Phase 3)
     newName: acrk8slabw2e3fs.azurecr.io/demo-nginx
