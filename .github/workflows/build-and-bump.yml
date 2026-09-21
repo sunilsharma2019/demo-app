@@ -1,0 +1,78 @@
+# -----------------------------------------------------------------------------
+# CI pipeline: build the image, push it to ACR, then bump the image tag in the
+# GitOps manifests and commit it. It STOPS THERE.
+#
+# This pipeline never runs kubectl or `az aks`. Deploying is Argo CD's job: it
+# sees the new commit and rolls the change out to the cluster. That boundary is
+# what makes this GitOps (pull-based) rather than push-based CD.
+# -----------------------------------------------------------------------------
+name: build-and-bump
+
+on:
+  push:
+    branches: [main]
+    # Do not run when only the manifests change. This stops the pipeline's own
+    # tag-bump commit (which edits apps/**) from starting another run.
+    paths-ignore:
+      - "apps/**"
+      - "README.md"
+  workflow_dispatch:
+
+# id-token: write lets the job request an OIDC token so it can log in to Azure
+#   without any stored password.
+# contents: write lets the job commit the tag bump back to this repo.
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  IMAGE_NAME: demo-nginx
+  KUSTOMIZATION: apps/demo-nginx/kustomization.yaml
+
+jobs:
+  build-push-bump:
+    runs-on: ubuntu-latest
+    steps:
+      # ---- Stage 1: get the code -------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tag (short commit SHA)
+        run: echo "TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      # ---- Stage 2: build and push to ACR ----------------------------------
+      # Passwordless login using GitHub's OIDC token. The three IDs are stored
+      # as repository secrets (see README); they are identifiers, not passwords.
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to ACR
+        run: az acr login --name "${{ vars.ACR_NAME }}"
+
+      - name: Build and push image
+        run: |
+          IMAGE="${{ vars.ACR_NAME }}.azurecr.io/${IMAGE_NAME}"
+          docker build --build-arg BUILD_TAG="${TAG}" -t "${IMAGE}:${TAG}" .
+          docker push "${IMAGE}:${TAG}"
+          echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
+
+      # ---- Stage 3: bump the tag in the manifests and commit ---------------
+      # Edits only the images: block of kustomization.yaml (name stays "nginx",
+      # matching the Deployment). yq is preinstalled on ubuntu-latest runners.
+      - name: Bump image in kustomization.yaml
+        run: |
+          yq -i '.images[0].newName = strenv(IMAGE) | .images[0].newTag = strenv(TAG)' "${KUSTOMIZATION}"
+          cat "${KUSTOMIZATION}"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add "${KUSTOMIZATION}"
+          git diff --cached --quiet && echo "No change to commit" && exit 0
+          git commit -m "ci: bump demo-nginx image to ${TAG}"
+          git push
