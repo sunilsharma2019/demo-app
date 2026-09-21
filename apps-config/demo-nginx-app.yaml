@@ -1,0 +1,34 @@
+# -----------------------------------------------------------------------------
+# Child Application for demo-nginx, managed by root-app.
+# This replaces gitops-manifests/argocd-app.yaml (which was applied by hand and
+# used manual sync). The sync policy now lives here in Git, so `argocd app set`
+# is no longer needed and cannot silently differ from what Git says.
+# -----------------------------------------------------------------------------
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo-nginx
+  namespace: argocd
+  # Cascade delete: if this file is removed from Git (or the Application is
+  # deleted), Argo CD also deletes the app's resources in the cluster. Without
+  # it the Deployment and Service would be left behind.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/sunilsharma2019/demo-app.git
+    targetRevision: HEAD
+    path: apps/demo-nginx      # Folder containing kustomization.yaml.
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo
+
+  syncPolicy:
+    automated:
+      prune: true              # Resources removed from Git are deleted from the cluster.
+      selfHeal: true           # Manual cluster changes are reverted to match Git.
+    syncOptions:
+      - CreateNamespace=true   # Create "demo" if it does not exist.

@@ -12,9 +12,11 @@ on:
   push:
     branches: [main]
     # Do not run when only the manifests change. This stops the pipeline's own
-    # tag-bump commit (which edits apps/**) from starting another run.
+    # tag-bump commit (which edits apps/**) from starting another run, and
+    # skips Argo CD app definitions (apps-config/**).
     paths-ignore:
       - "apps/**"
+      - "apps-config/**"
       - "README.md"
   workflow_dispatch:
 
